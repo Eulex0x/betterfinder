@@ -30,16 +30,16 @@ subfinder -d example.com -silent -o subs.txt
 # ask what's worth rescanning
 python3 betterfinder.py -d example.com -i subs.txt > rescan.txt
 
-# rescan against crt.sh itself -- the source this whole thing is built
-# around, so this is the clearest way to see it actually help
+# rescan against crt.sh
 xargs -I{} curl -s "https://crt.sh/?q=%25.{}&output=json" < rescan.txt \
   | jq -r '.[].name_value' >> subs.txt
 
-# subfinder takes a list natively too, no loop needed
-subfinder -dL rescan.txt -silent >> subs.txt
-
 sort -u subs.txt -o subs.txt
 ```
+
+Works the same with any discovery tool — subfinder, amass, HackerTarget,
+whatever you already use. `rescan.txt` is just a list of domains, feed it
+to anything that takes one.
 
 `--seen levels.txt` keeps a running record so you don't rescan the same
 label twice across rounds — pass the same file each time and it self-excludes.
