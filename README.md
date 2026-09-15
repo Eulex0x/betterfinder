@@ -1,54 +1,49 @@
 # betterfinder
 
-Free recon sources — crt.sh, HackerTarget, OTX, whatever — each do *one
-bulk lookup per apex domain*. On a big/high-volume domain that single
-query can silently come back incomplete: no error, no pagination hint,
-just fewer rows than actually exist. Confirmed this on crt.sh with a real
-target: the naive bulk query returned 217 hosts, the real number was
-310+, including whole subdomain clusters (an acquired brand, internal
-tooling) that never showed up at all. No reason to think other free
-sources behave better at scale — they're free, rate-limited, and none of
-them tell you when they're truncating you.
+Free CT-log/passive sources do one bulk query per domain. On big domains
+that query silently drops rows — no error, just missing hosts. betterfinder
+tells you which subdomain "levels" are worth a second, narrower look, so
+you catch what the first pass missed.
 
-Fix: once a label shows up more than once in what you've already found
-(`staging.domain.com`, `data.domain.com`...), rerun your discovery tools
-against *that label alone*. Narrower queries dodge the same truncation
-and often surface whole clusters the bulk query hid.
+## example (real, public domain, reproducible)
 
-betterfinder does exactly that one step and nothing else — **it doesn't
-query anything**. Feed it a subdomain list, it hands back which narrower
-domains are worth a fresh discovery pass. You pipe that into whatever you
-already use (subfinder, crt.sh, amass...), merge what comes back, and run
-betterfinder again on the bigger list if you want another round.
+```
+$ curl -s "https://crt.sh/?q=%25.wikimedia.org&output=json" | jq -r '.[].name_value' | sort -u > subs.txt
+$ wc -l subs.txt
+148 subs.txt
+
+$ python3 betterfinder.py -d wikimedia.org -i subs.txt
+codfw.wikimedia.org
+corp.wikimedia.org
+eqiad.wikimedia.org
+frdev.wikimedia.org
+
+$ # rescan those 4 levels against crt.sh, merge back in
+$ wc -l subs.txt
+155 subs.txt
+```
+
++7 hosts the first bulk query missed entirely, e.g. `superset.frdev.wikimedia.org`,
+`ldap-rw-next.codfw.wikimedia.org`, `payments-listener.frdev.wikimedia.org`.
 
 ## use
 
 ```bash
-# get a subdomain list from crt.sh
 curl -s "https://crt.sh/?q=%25.example.com&output=json" | jq -r '.[].name_value' | sort -u > subs.txt
-
-# ask what's worth rescanning
 python3 betterfinder.py -d example.com -i subs.txt > rescan.txt
-
-# rescan those levels against crt.sh, narrower this time
-xargs -I{} curl -s "https://crt.sh/?q=%25.{}&output=json" < rescan.txt \
-  | jq -r '.[].name_value' >> subs.txt
-
+xargs -I{} curl -s "https://crt.sh/?q=%25.{}&output=json" < rescan.txt | jq -r '.[].name_value' >> subs.txt
 sort -u subs.txt -o subs.txt
 ```
 
-Works the same with any discovery tool — subfinder, amass, HackerTarget,
-whatever you already use. `rescan.txt` is just a list of domains, feed it
-to anything that takes one.
+Works with any discovery tool, not just crt.sh — `rescan.txt` is a plain
+domain list, feed it to subfinder/amass/whatever you already use.
 
-`--seen levels.txt` keeps a running record so you don't rescan the same
-label twice across rounds — pass the same file each time and it self-excludes.
+betterfinder itself makes zero network calls — it just reads a subdomain
+list and prints which parent labels have enough children (`--fanout`,
+default 2) to be worth a second query. `--seen file.txt` tracks labels
+already probed so repeat runs don't re-emit them.
 
-`--fanout` (default 2) is the min number of known children a label needs
-before it counts. Lower it (e.g. `--fanout 1`) on a small target where
-there's little request volume to worry about cutting.
-
-No dependencies, no network calls.
+No dependencies.
 
 ## license
 
