@@ -1,0 +1,2 @@
+# betterfinder has no external dependencies — standard library only.
+# This file is intentionally empty (kept for tooling that expects one).
