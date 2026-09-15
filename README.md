@@ -24,13 +24,13 @@ betterfinder again on the bigger list if you want another round.
 ## use
 
 ```bash
-# get a subdomain list however you normally do
-subfinder -d example.com -silent -o subs.txt
+# get a subdomain list from crt.sh
+curl -s "https://crt.sh/?q=%25.example.com&output=json" | jq -r '.[].name_value' | sort -u > subs.txt
 
 # ask what's worth rescanning
 python3 betterfinder.py -d example.com -i subs.txt > rescan.txt
 
-# rescan against crt.sh
+# rescan those levels against crt.sh, narrower this time
 xargs -I{} curl -s "https://crt.sh/?q=%25.{}&output=json" < rescan.txt \
   | jq -r '.[].name_value' >> subs.txt
 
