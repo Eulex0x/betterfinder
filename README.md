@@ -1,9 +1,17 @@
 # betterfinder
 
-Free CT-log/passive sources do one bulk query per domain. On big domains
-that query silently drops rows — no error, just missing hosts. betterfinder
-tells you which subdomain "levels" are worth a second, narrower look, so
-you catch what the first pass missed.
+**Why this happens:** crt.sh and every other free passive source answer
+one bulk query per domain against a public database under constant load.
+On a big domain that query gets cut short — silently, no error, no
+warning. It just returns fewer rows than actually exist.
+
+**Why you should care:** every dropped row is a dropped subdomain — a
+forgotten staging box, an internal tool, a dev environment nobody
+hardened. If you trust the first bulk query, you are not seeing
+everything that's actually there.
+
+betterfinder finds which subdomain "levels" are worth a second, narrower
+look — that's what catches what the first pass missed.
 
 ## example (real, public domain, reproducible)
 
