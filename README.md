@@ -30,8 +30,14 @@ subfinder -d example.com -silent -o subs.txt
 # ask what's worth rescanning
 python3 betterfinder.py -d example.com -i subs.txt > rescan.txt
 
-# rescan those, merge back in, repeat
-while read -r lvl; do subfinder -d "$lvl" -silent; done < rescan.txt >> subs.txt
+# rescan against crt.sh itself -- the source this whole thing is built
+# around, so this is the clearest way to see it actually help
+xargs -I{} curl -s "https://crt.sh/?q=%25.{}&output=json" < rescan.txt \
+  | jq -r '.[].name_value' >> subs.txt
+
+# subfinder takes a list natively too, no loop needed
+subfinder -dL rescan.txt -silent >> subs.txt
+
 sort -u subs.txt -o subs.txt
 ```
 
